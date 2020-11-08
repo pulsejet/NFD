@@ -180,8 +180,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(SetPingInterval, F, AddressFamilies)
 
   BOOST_CHECK_EQUAL(limitedIo.run(2, // clientHandlePing
                                   pingInterval * 3), LimitedIo::EXCEED_OPS);
-  BOOST_CHECK_LE(measuredPingInterval, pingInterval * 1.1);
-  BOOST_CHECK_GE(measuredPingInterval, pingInterval * 0.9);
+  BOOST_CHECK_LE(measuredPingInterval, pingInterval * 1.15);
+  BOOST_CHECK_GE(measuredPingInterval, pingInterval * 0.85);
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(SetPongTimeOut, F, AddressFamilies)

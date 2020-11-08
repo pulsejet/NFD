@@ -7,15 +7,18 @@ if has OSX $NODE_LABELS; then
         FORMULAE+=(python)
     fi
 
-    if [[ -n $TRAVIS ]]; then
+    if [[ -n $TRAVIS ]] || [[ -n $GITHUB_ACTIONS ]]; then
         # Travis images come with a large number of pre-installed
         # brew packages, don't waste time upgrading all of them
         brew list --versions "${FORMULAE[@]}" || brew update
         for FORMULA in "${FORMULAE[@]}"; do
             brew list --versions "$FORMULA" || brew install "$FORMULA"
         done
-        # Ensure /usr/local/opt/openssl exists
-        brew reinstall openssl
+
+        if [[ -n $TRAVIS ]]; then
+            # Ensure /usr/local/opt/openssl exists
+            brew reinstall openssl
+        fi
     else
         brew update
         brew upgrade

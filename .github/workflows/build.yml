@@ -1,0 +1,96 @@
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  linux:
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+    name: ${{ matrix.os }} ${{ matrix.compiler }}
+
+    strategy:
+      matrix:
+        os: [Ubuntu-18.04]
+        compiler: [
+          g++-8, g++-9,
+          clang++-5.0, clang++-6.0, clang++-7, clang++-8,
+          clang++-9, clang++-10, clang++-11]
+        experimental: [false]
+
+        include:
+        - os: Ubuntu-18.04
+          compiler: g++-5
+          experimental: true
+        - os: Ubuntu-18.04
+          compiler: g++-6
+          experimental: true
+        - os: Ubuntu-18.04
+          compiler: clang++-12
+          experimental: true
+
+    env:
+      CXX: ${{ matrix.compiler }}
+      COMPILER: ${{ matrix.compiler }}
+      NODE_LABELS: "Linux Ubuntu ${{ matrix.os }}"
+      WAF_JOBS: 2
+      JOB_NAME: limited-build
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - if: startsWith(matrix.compiler, 'g++')
+      name: Add toolchain PPA
+      run: |
+        sudo apt-get -qy install software-properties-common
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+
+    - if: contains(matrix.compiler, 'clang')
+      name: Setup LLVM repository
+      run: |
+        CI_DIST=`grep DISTRIB_CODENAME /etc/lsb-release | cut -f2 -d'='`
+        LLVM_REPO=${COMPILER/clang++/llvm-toolchain-${CI_DIST}}
+        wget -nv -O - "https://apt.llvm.org/llvm-snapshot.gpg.key" | sudo apt-key add -
+        sudo add-apt-repository -y "deb http://apt.llvm.org/${CI_DIST}/ ${LLVM_REPO%-12} main"
+
+    - name: Setup for Linux
+      run: |
+        sudo sysctl -e -w net.ipv6.conf.all.disable_ipv6=0
+
+    - name: Install compiler
+      run: |
+        sudo apt-get -qq update
+        sudo apt-get -qy install ${COMPILER/clang++/clang}
+
+    - name: Run build script
+      run: |
+        if [[ ${COMPILER} == "clang++-7" ]] || [[ ${COMPILER} == "clang++-8" ]]; then
+          export DISABLE_ASAN=yes
+        fi
+        ./.jenkins
+
+  macos:
+    runs-on: ${{ matrix.os }}
+    continue-on-error: false
+    name: Xcode ${{ matrix.xcode }}
+
+    strategy:
+      matrix:
+        os: [macos-latest]
+        xcode: [11, 11.3, 11.6, 12]
+
+    env:
+      WAF_JOBS: 2
+      JOB_NAME: limited-build
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Run build script
+      run: |
+        sudo xcode-select -s /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+        export NODE_LABELS="OSX OSX-$(sw_vers -productVersion | cut -d . -f -2)"
+        ./.jenkins
